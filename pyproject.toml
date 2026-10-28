@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "koeloop"
+version = "0.1.0"
+description = "Japanese voice conversations with local speech recognition, streaming LLMs, and VOICEVOX"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{name = "upiscium"}]
+requires-python = ">=3.11"
+dependencies = ["fastapi>=0.115,<1", "pydantic>=2.7,<3", "uvicorn[standard]>=0.30,<1", "httpx>=0.27,<1"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+parakeet = ["onnx-asr==0.12.0", "onnxruntime>=1.27,<2"]
+vosk = ["vosk==0.3.45"]
+japanese-stt = ["torch>=2.6,<3", "transformers>=4.57.6,<6"]
+syntax = [
+  "spacy[ja]>=3.8.16,<3.9",
+  "ja-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/ja_core_news_sm-3.8.0/ja_core_news_sm-3.8.0-py3-none-any.whl#sha256=65693016b7cf33ffa845af3523a9c9b8d9aabae85dfc2e46731513a5e03def04",
+]
+
+[project.urls]
+Repository = "https://github.com/upiscium/koeloop"
+Issues = "https://github.com/upiscium/koeloop/issues"
+
+[tool.setuptools.packages.find]
+include = ["restream*"]
+
+[tool.setuptools.package-data]
+restream = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KoeLoop — VOICEVOX Restream Lab</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<main>
+  <header><p class="eyebrow">STREAM → SEGMENT → SPEECH</p><h1>KoeLoop — VOICEVOX Restream Lab</h1>
+    <p>受信したチャンクではなく、発話のまとまりで読む。</p></header>
+  <p class="notice">LAN 内向け・認証なし。外部公開しないでください。音声はこのブラウザで再生します。</p>
+  <section class="card">
+    <h2>入力と合成</h2>
+    <div class="grid">
+      <label>入力元<select id="source"><option value="mock">模擬ストリーム（比較用）</option><option value="direct">直接テキスト</option><option value="llm">LLM（OpenAI 互換）</option><option value="external">外部アプリから送信</option></select></label>
+      <label>分割方式<select id="mode"><option value="balanced">バランス：文末＋節＋先読み</option><option value="syntax">構文解析（実験）</option><option value="sentence">文末まで待つ（比較基準）</option><option value="raw">受信チャンクごと（比較用）</option></select></label>
+      <label>VOICEVOX 話者<select id="speaker"><option value="3">ID 3（Engine 未確認）</option></select></label>
+      <label>速度<input id="speed" type="number" value="1" min="0.5" max="2" step="0.1"></label>
+    </div>
+    <p id="modeHint" class="muted"></p>
+    <label>読み上げるテキスト／LLM へのプロンプト<textarea id="text" rows="6" maxlength="100000">今日は、新しい音声合成の仕組みを試してみます。テキストが少しずつ届いても、意味のまとまりを待ってから読み上げます。「この区切り方は自然でしょうか？」短い文だけでなく、少し長い文でも聞き比べてみてください。</textarea></label>
+    <div class="actions"><button id="relativeExample" type="button">修飾節の比較例を入れる</button><button id="clauseExample" type="button">原因節の比較例を入れる</button></div>
+    <details><summary>分割・模擬ストリームの設定</summary><div class="grid">
+      <label>節の最小文字数<input id="minChars" type="number" value="24" min="1" max="1000"></label>
+      <label>発話の最大文字数<input id="maxChars" type="number" value="160" min="1" max="1000"></label>
+      <label>節の先読み文字数<input id="lookahead" type="number" value="12" min="0" max="1000"></label>
+      <label>模擬チャンク文字数<input id="chunkSize" type="number" value="8" min="1" max="8192"></label>
+      <label>模擬送信間隔（ms）<input id="interval" type="number" value="100" min="0" max="5000"></label>
+      <label>句点後に追加する間（ms）<input id="sentenceExtra" type="number" value="200" min="0" max="1000" step="10"></label>
+      <label>読点のポーズ（倍率）<input id="commaScale" type="number" value="0.8" min="0" max="2" step="0.05"></label>
+    </div><p class="muted">最大文字数では強制分割します。意味的な安全性は保証されません。句点のない末尾は入力終了時に確定します。</p></details>
+    <label class="check"><input id="adjustPauses" type="checkbox"> 句読点の間を調整する（比較ラボの既定はオフ。チャットの既定はオン）</label>
+    <label class="check"><input id="audio" type="checkbox" checked> 音声を合成・再生する（オフなら Engine 不要）</label>
+    <div class="actions"><button id="start">開始</button><button id="stop" disabled>停止</button><button id="speakers">話者を再取得</button></div>
+    <p id="config" class="muted"></p><p id="status" role="status">準備中</p>
+    <p id="syntaxStatus" class="muted"></p><p id="syntaxWarning" role="status"></p>
+    <label>外部アプリの送信先（外部入力で開始すると表示）<input id="externalUrl" readonly placeholder="POST 先 URL"></label>
+  </section>
+  <section class="card">
+    <h2>計測</h2><div class="metrics">
+      <div>初回テキスト受信<strong id="firstDelta">—</strong></div>
+      <div>初回発話確定<strong id="firstSegment">—</strong></div>
+      <div>初回再生予定<strong id="firstAudio">—</strong></div>
+      <div>再生スケジュールの空白合計<strong id="gaps">—</strong></div>
+    </div>
+    <p class="muted">開始操作からのブラウザ計測。再生予定は AudioContext の予定時刻による推定です。空白合計には WAV 内部の無音を含みません。</p>
+    <h3>今回受信したテキスト</h3><pre id="received"></pre>
+    <button id="reuse">受信テキストを比較用入力にする</button>
+  </section>
+  <section class="card">
+    <h2>確定した発話</h2><p class="muted">同じ入力・模擬送信設定・話者・速度で方式を切り替えて比較してください。各実行の結果は下の履歴に残ります。</p>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>テキスト</th><th>確定理由</th><th>確定時刻</th><th>合成時間</th></tr></thead><tbody id="segments"></tbody></table></div>
+    <p id="analysisMetrics" class="muted"></p>
+    <details><summary>構文境界の判定ログ（直近50件）</summary><pre id="syntaxLog"></pre></details>
+  </section>
+  <section class="card"><h2>比較履歴（このページ内のみ）</h2><div id="history"></div></section>
+</main>
+</body>
+</html>

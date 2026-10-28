@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KoeLoop — VOICEVOX Chat</title>
+  <link rel="stylesheet" href="/static/chat.css">
+  <script type="module" src="/static/chat.js"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="/">◉ <span>KoeLoop</span></a>
+    <button class="new-chat" id="newChat" type="button">＋ 新しい会話</button>
+    <details id="settingsPanel" open>
+      <summary>接続設定</summary>
+      <fieldset id="settingsFields">
+        <label for="llmUrl">LLM の URL</label>
+        <input id="llmUrl" type="url" maxlength="2048" placeholder="http://127.0.0.1:11434/v1" spellcheck="false">
+        <p class="hint">OpenAI 互換 API。末尾の /v1 は省略可能です（ルート URL の場合）。</p>
+        <label for="model">モデル名</label>
+        <input id="model" maxlength="200" placeholder="qwen3.5:4b" spellcheck="false">
+        <label for="voicevoxUrl">VOICEVOX の URL</label>
+        <input id="voicevoxUrl" type="url" maxlength="2048" placeholder="http://127.0.0.1:50021" spellcheck="false">
+        <p class="hint">API サーバーから見た接続先です。別端末のブラウザでも、サーバー上の Engine は 127.0.0.1 で指定できます。</p>
+        <div class="label-row"><label for="speaker">話者</label><button id="loadSpeakers" class="text-button" type="button">話者を取得</button></div>
+        <select id="speaker"><option value="3">ずんだもん・ノーマル (ID 3)</option></select>
+        <p class="hint" id="speakerStatus" role="status"></p>
+        <details class="advanced">
+          <summary>詳細設定</summary>
+          <label for="apiKey">LLM API キー（必要な場合）</label>
+          <input id="apiKey" type="password" maxlength="2048" autocomplete="off" placeholder="Ollama では通常不要">
+          <p class="hint">キーはこのタブだけで保持し、保存しません。LAN 内 HTTP では送信は暗号化されません。</p>
+          <label for="reasoning">推論モード</label>
+          <select id="reasoning"><option value="">接続先の既定値</option><option value="none">none（今回の Ollama 向け・低遅延）</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
+          <p class="hint">未対応のモデルでは「接続先の既定値」を選んでください。</p>
+          <label for="speed">読み上げ速度</label>
+          <input id="speed" type="number" min="0.5" max="2" step="0.1" value="1">
+          <label class="checkbox"><input id="adjustPauses" type="checkbox" checked> 句読点の間を調整する</label>
+          <label for="sentenceExtra">句点後に追加する間（ms）</label>
+          <input id="sentenceExtra" type="number" min="0" max="1000" step="10" value="200">
+          <label for="commaScale">読点のポーズ（倍率）</label>
+          <input id="commaScale" type="number" min="0" max="2" step="0.05" value="0.8">
+          <p class="hint">句点の追加時間は話速と独立です。0.8で読点のポーズ指定を20%短縮。オフで従来の間に戻ります。</p>
+          <label for="mode">読み上げの区切り</label>
+          <select id="mode"><option value="balanced">バランス（文末・節・先読み）</option><option value="syntax">構文解析（実験・慎重に節で区切る）</option><option value="sentence">文末まで待つ（比較基準）</option><option value="raw">そのまま（受信チャンクごと・再分割なし）</option></select>
+          <p id="modeHint" class="hint"></p>
+          <p id="syntaxStatus" class="hint">構文解析は係り受けと先読みの安定性を確認します。自然さを保証するものではありません。</p>
+        </details>
+        <label class="checkbox"><input id="audioEnabled" type="checkbox" checked> 音声で返答する</label>
+        <label class="checkbox"><input id="voiceBargeIn" type="checkbox"> 連続会話で返答中の割り込みを有効にする（実験）</label>
+        <p class="hint">オンでは返答中もマイク音声をVADへ送ります。話し始めると返答を中断します。ブラウザのエコー抑制を使いますが、スピーカー音でも誤作動する場合があるためヘッドホンを推奨します。</p>
+        <label for="sttBackend">マイクの認識モデル（STT）</label>
+        <select id="sttBackend"><option value="">サーバー設定を確認中…</option></select>
+        <p class="hint">導入済みのモデルのみ選べます。変更しても下書きは送信しません。</p>
+        <details class="vad-settings"><summary>音声会話の発話検出</summary>
+          <label for="voiceSilence">発話終了の無音待ち（ms）</label>
+          <input id="voiceSilence" type="number" min="500" max="3000" step="100" value="1000">
+          <label for="voicePre">発話前の余白（ms）</label>
+          <input id="voicePre" type="number" min="0" max="500" step="50" value="200">
+          <label for="voicePost">発話後の余白（ms）</label>
+          <input id="voicePost" type="number" min="0" max="500" step="50" value="200">
+          <label for="voiceThreshold">VADしきい値</label>
+          <input id="voiceThreshold" type="number" min="0.1" max="0.9" step="0.05" value="0.5">
+        </details>
+        <p id="voiceHint" class="hint">音声会話はVAD＋Parakeetを使います。途中の文字は表示せず、認識した最終文をLLMへ送信して履歴に残します。通常の「マイク」は文字入力だけです。</p>
+      </fieldset>
+    </details>
+    <footer class="sidebar-footer"><p>LAN 内限定・認証なし<br>信頼できる端末だけで利用してください。</p><a href="/lab">分割を比較する試聴ラボ ↗</a></footer>
+  </aside>
+  <main>
+    <header class="topbar"><button id="toggleSettings" class="icon-button" type="button" aria-label="接続設定を開閉" aria-controls="sidebar" aria-expanded="true">☰</button><span id="modelLabel">KoeLoop</span><span class="local-badge">LAN</span></header>
+    <div class="conversation" id="conversation">
+      <section class="welcome" id="welcome">
+        <div class="welcome-mark" aria-hidden="true">◉</div>
+        <h1>何を話しましょうか？</h1>
+        <p>テキストで話しかけると、<br>返答を表示しながら VOICEVOX で読み上げます。</p>
+        <div class="suggestions"><button type="button" data-prompt="こんにちは。短く自己紹介してください。">まずは挨拶してみる</button><button type="button" data-prompt="雨の日の過ごし方を、短い二文で提案してください。">雨の日の過ごし方</button></div>
+        <p class="hint">接続設定を確認してから送信してください。</p>
+      </section>
+      <div class="messages" id="messages" role="log" aria-label="会話"></div>
+    </div>
+    <div class="composer-area">
+      <div id="status" class="status" role="status">接続設定を確認して、メッセージを送信してください。</div>
+      <form id="composer" class="composer">
+        <label class="sr-only" for="prompt">メッセージ</label>
+        <textarea id="prompt" rows="2" maxlength="4000" placeholder="メッセージを入力…" required></textarea>
+        <div class="composer-bottom"><span>Enter で送信 · Shift＋Enter で改行</span><button id="micCancel" type="button" hidden>破棄</button><button id="mic" type="button" aria-label="マイクで文字入力" aria-pressed="false" disabled>マイク</button><button id="stop" type="button" hidden>■ 停止</button><button id="send" type="submit" aria-label="送信">↑</button></div>
+      </form>
+      <p id="sttStatus" class="stt-status" role="status">音声入力を準備中…（自動送信はしません）</p>
+      <div class="voice-controls"><button id="voiceStart" type="button" disabled>音声で会話</button><button id="voiceContinuous" type="button" disabled>連続会話を開始</button><button id="voiceCancel" type="button" hidden>音声会話を破棄</button></div>
+      <p id="voiceStatus" class="stt-status" role="status">発話を検出 → Parakeetで認識 → LLMへ送信。返答中の割り込みは設定から有効にできます。</p>
+      <p class="hint">連続会話は返答後も続けて聞き取ります。割り込みを使う場合は設定で有効にしてください。マイクは終了するまで開いたままです。「会話を終了」で停止します。</p>
+      <section id="sttPendingPanel" class="stt-pending" hidden>
+        <label for="sttPending">入力欄に追加できなかった認識結果</label>
+        <textarea id="sttPending" rows="3" readonly></textarea>
+        <button id="insertStt" type="button">入力欄に追加</button><button id="discardStt" type="button">結果を破棄</button>
+      </section>
+      <p class="footnote" id="contextInfo">会話はこのページ内のみ。接続設定だけをこのブラウザに保存します。</p>
+    </div>
+  </main>
+</body>
+</html>
